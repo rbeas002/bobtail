@@ -1074,25 +1074,23 @@ rxFactory = (_, $) ->
     #   (attrs: Object, contents: Contents)
     # where Contents is:
     #   string | number | Element | RawHtml | $ | Array | ObsCell | ObsArray
-    normalizeTagArgs = (arg1, arg2) ->
-      if not arg1? and not arg2?
-        [{}, null]
-      else if arg1 instanceof Object and arg2?
-        [arg1, arg2]
-      else if not arg2? and
-          _.isString(arg1) or
-          _.isNumber(arg1) or
-          arg1 instanceof Element or
-          arg1 instanceof SVGElement or
-          arg1 instanceof RawHtml or
-          arg1 instanceof $ or
-          _.isArray(arg1) or
-          arg1 instanceof ObsCell or
-          arg1 instanceof ObsArray or
-          arg1 instanceof ObsSet
-        [{}, arg1]
-      else
-        [arg1, null]
+    normalizeTagArgs = (args...) ->
+      first = args[0]
+      if not first?
+        return {attrs: {}, contents: null}
+      else if _.isString(first) or
+          _.isNumber(first) or
+          _.isArray(first) or
+          first instanceof Element or
+          first instanceof SVGElement or
+          first instanceof RawHtml or
+          first instanceof $ or
+          first instanceof ObsCell or
+          first instanceof ObsArray or
+          first instanceof ObsSet
+        return {attrs: {}, contents: rx.flatten args}
+      else return {attrs: first, contents: rx.flatten args[1...]}
+    
 
     toNodes = (contents) ->
       for child in contents
@@ -1135,10 +1133,12 @@ rxFactory = (_, $) ->
       else
         throw new Error("Unknown type for element contents: #{contents.constructor.name} (accepted types: string, number, Element, RawHtml, jQuery object of single element, or array of the aforementioned)")
 
+  # tags.div({class: 'foo bar'}, [tags.h1("Hello World"), tags.p("I hate everything")])
+  # <div class="foo bar" onclick="function(){alert('click!');}"><h1>Hello World!</h1><p>I hate everything</p></div>
     rxt.mktag = mktag = (tag) ->
-      (arg1, arg2) ->
-        [attrs, contents] = normalizeTagArgs(arg1, arg2)
-
+      (args...) ->
+        {attrs, contents} = normalizeTagArgs(args...)
+    
         elt = $("<#{tag}/>")
         for name, value of _.omit(attrs, _.keys(specialAttrs))
           setDynProp(elt, name, value)
@@ -1232,8 +1232,8 @@ rxFactory = (_, $) ->
         throw "Must wrap contents #{contents} as array or string"
 
     rxt.svg_mktag = mktag = (tag) ->
-      (arg1, arg2) ->
-        [attrs, contents] = normalizeTagArgs(arg1, arg2)
+      (args...) ->
+        {attrs, contents} = normalizeTagArgs(args...)
 
         elt = document.createElementNS('http://www.w3.org/2000/svg', tag)
         for name, value of _.omit(attrs, _.keys(specialAttrs))
